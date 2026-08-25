@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>4G 频段选型助手 · 输入国家查频段与模组</title>
+<style>
+  :root{
+    --navy:#0f2447; --blue:#1F4E79; --ink:#1d1d1f; --grey:#6e6e73;
+    --gold:#b8860b; --bg:#f5f5f7; --card:#ffffff; --line:#e5e5ea;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:"PingFang SC","Microsoft YaHei","Segoe UI",sans-serif; background:var(--bg); color:var(--ink); -webkit-font-smoothing:antialiased;}
+  .hero{background:var(--navy); color:#fff; padding:40px 20px 56px; text-align:center;}
+  .hero h1{font-size:30px; font-weight:700; letter-spacing:.5px;}
+  .hero .sub{color:#cfe0f2; font-size:14px; margin-top:8px;}
+  .searchwrap{max-width:560px; margin:-28px auto 0; padding:0 20px; position:relative; z-index:5;}
+  .search{width:100%; padding:16px 20px; font-size:16px; border:none; border-radius:14px;
+    box-shadow:0 8px 28px rgba(15,36,71,.18); outline:none; color:var(--ink);}
+  .search:focus{box-shadow:0 8px 28px rgba(31,78,121,.35);}
+  .hint{max-width:560px; margin:14px auto 0; padding:0 20px; font-size:12px; color:var(--grey); text-align:center;}
+  .wrap{max-width:760px; margin:0 auto; padding:28px 20px 60px;}
+  .result-card{background:var(--card); border-radius:16px; padding:24px; margin-top:18px;
+    box-shadow:0 2px 12px rgba(0,0,0,.05); border:1px solid var(--line);}
+  .result-card .country{font-size:20px; font-weight:700; color:var(--navy); display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+  .tag{font-size:12px; color:var(--blue); background:#e8f0fa; padding:3px 10px; border-radius:20px; font-weight:600;}
+  .row{margin-top:16px;}
+  .row .label{font-size:12px; color:var(--grey); margin-bottom:6px; letter-spacing:.5px;}
+  .bands{font-size:15px; font-weight:600; color:var(--ink); line-height:1.6;}
+  .module{font-size:15px; font-weight:700; color:var(--gold);}
+  .note{font-size:12px; color:var(--grey); margin-top:12px; line-height:1.6;}
+  .empty{text-align:center; color:var(--grey); padding:40px 0; font-size:14px;}
+  .footer{text-align:center; font-size:12px; color:var(--grey); padding:0 0 40px; line-height:1.8;}
+  .footer b{color:var(--navy);}
+</style>
+</head>
+<body>
+  <div class="hero">
+    <h1>4G 频段选型助手</h1>
+    <div class="sub">输入目标国家 / 地区，查对应频段与推荐模组</div>
+  </div>
+
+  <div class="searchwrap">
+    <input class="search" id="q" type="text" placeholder="输入国家名，如：美国 / 德国 / 菲律宾…" autocomplete="off">
+  </div>
+  <div class="hint">支持中文、英文国家名；输入任意关键字实时匹配</div>
+
+  <div class="wrap" id="result"></div>
+
+  <div class="wrap" style="padding-top:10px;">
+    <h2 style="font-size:20px;color:var(--navy);margin-top:24px;">模组频点覆盖国家清单</h2>
+    <p style="font-size:12px;color:var(--grey);margin:6px 0 16px;">按纬联 4G 模组版本，看各自频点能覆盖的国家 / 地区</p>
+    <div id="coverList"></div>
+  </div>
+
+  <div class="footer">
+    <b>纬联 4G Cat.1 模组 · 海思 Hi2131 + 移芯 EC718P-M 双方案</b><br>
+    频段覆盖：国内全网通 ｜ 欧亚 ｜ 北美 ｜ 全球通 ｜ 详情见选型指南
+  </div>
+
+<script>
+// 纬联 4G 模组频段覆盖
+const COVER = {
+  'H2131系列(国内全网通)': 'FDD B1/B3/B5/B8 + TDD B34/B38/B39/B40/B41',
+  'H2131-EU(欧亚)': 'FDD B1/B3/B5/B7/B8/B20/B28',
+  'H2131-GL(全球通)': 'FDD B1/B2/B3/B4/B5/B7/B8/B20/B26/B28/B66 + TDD B38/B40/B41',
+  'E718M-A(北美)': 'FDD B2/B4/B5/B7/B12/B13/B17/B25/B26/B66 + TDD B38/B40/B41',
+};
+
+// 国家 → 频段 → 推荐模组
+const DATA = [
+  // 中国
+  {name:'中国（大陆）', en:'China', region:'中国大陆', bands:'B1/B3/B5/B8 + B34/B38/B39/B40/B41', module:'H2131 系列（国内全网通）'},
+  {name:'香港', en:'Hong Kong', region:'中国香港', bands:'B1/B3/B7/B8', module:'H2131-EU / H2131-GL'},
+  {name:'台湾', en:'Taiwan', region:'中国台湾', bands:'B1/B3/B7/B8/B28', module:'H2131-EU / H2131-GL'},
+  // 东北亚
+  {name:'日本', en:'Japan', region:'东亚', bands:'B1/B3/B8/B18/B19/B26', module:'H2131-GL（全球通）'},
+  {name:'韩国', en:'South Korea', region:'东亚', bands:'B1/B3/B5/B7', module:'H2131-GL（全球通）'},
+  {name:'印度', en:'India', region:'南亚', bands:'B1/B3/B5/B8/B40', module:'H2131-GL（全球通）'},
+  // 东南亚（H2131 有实测）
+  {name:'菲律宾', en:'Philippines', region:'东南亚', bands:'B1/B3/B5/B8', module:'H2131 系列（国内全网通）', note:'实测 4G 入网成功率 100%'},
+  {name:'越南', en:'Vietnam', region:'东南亚', bands:'B1/B3/B5/B8', module:'H2131 系列（国内全网通）', note:'实测 4G 入网成功率 96.7%'},
+  {name:'印度尼西亚', en:'Indonesia', region:'东南亚', bands:'B1/B3/B5/B8', module:'H2131 系列（国内全网通）', note:'实测 4G 入网成功率 100%'},
+  {name:'泰国', en:'Thailand', region:'东南亚', bands:'B1/B3/B5/B8', module:'H2131 系列（国内全网通）', note:'实测 4G 入网成功率 98.3%'},
+  {name:'马来西亚', en:'Malaysia', region:'东南亚', bands:'B1/B3/B5/B8', module:'H2131 系列（国内全网通）', note:'实测 4G 入网成功率 80.9%'},
+  {name:'新加坡', en:'Singapore', region:'东南亚', bands:'B1/B3/B8', module:'H2131 系列 / H2131-GL'},
+  // 欧洲
+  {name:'英国', en:'United Kingdom', region:'欧洲', bands:'B1/B3/B7/B8/B20/B28', module:'H2131-EU（欧亚版本）'},
+  {name:'德国', en:'Germany', region:'欧洲', bands:'B1/B3/B7/B8/B20/B28', module:'H2131-EU（欧亚版本）'},
+  {name:'法国', en:'France', region:'欧洲', bands:'B1/B3/B7/B8/B20/B28', module:'H2131-EU（欧亚版本）'},
+  {name:'意大利', en:'Italy', region:'欧洲', bands:'B1/B3/B7/B8/B20/B28', module:'H2131-EU（欧亚版本）'},
+  {name:'西班牙', en:'Spain', region:'欧洲', bands:'B1/B3/B7/B8/B20/B28', module:'H2131-EU（欧亚版本）'},
+  {name:'荷兰', en:'Netherlands', region:'欧洲', bands:'B1/B3/B7/B8/B20/B28', module:'H2131-EU（欧亚版本）'},
+  {name:'波兰', en:'Poland', region:'欧洲', bands:'B1/B3/B7/B8/B20/B28', module:'H2131-EU（欧亚版本）'},
+  {name:'俄罗斯', en:'Russia', region:'欧洲/中亚', bands:'B3/B7/B8/B20', module:'H2131-EU（欧亚版本）'},
+  {name:'土耳其', en:'Turkey', region:'欧亚', bands:'B1/B3/B7/B8/B20', module:'H2131-EU（欧亚版本）'},
+  // 中东
+  {name:'沙特阿拉伯', en:'Saudi Arabia', region:'中东', bands:'B1/B3/B8/B20', module:'H2131-EU（欧亚版本）'},
+  {name:'阿联酋', en:'United Arab Emirates', region:'中东', bands:'B1/B3/B8/B20', module:'H2131-EU（欧亚版本）'},
+  {name:'以色列', en:'Israel', region:'中东', bands:'B1/B3/B8/B20', module:'H2131-EU（欧亚版本）'},
+  // 北美
+  {name:'美国', en:'United States', region:'北美', bands:'B2/B4/B5/B12/B13/B66', module:'E718M-A（北美版本·FCC）', note:'需 FCC 认证，海思出不了北美，用移芯方案'},
+  {name:'加拿大', en:'Canada', region:'北美', bands:'B2/B4/B5/B12/B13/B66', module:'E718M-A（北美版本·FCC）'},
+  {name:'墨西哥', en:'Mexico', region:'北美', bands:'B2/B4/B5/B7/B28', module:'H2131-GL / E718M-A'},
+  // 拉美
+  {name:'巴西', en:'Brazil', region:'拉美', bands:'B2/B3/B5/B7/B28', module:'H2131-GL（全球通）'},
+  {name:'阿根廷', en:'Argentina', region:'拉美', bands:'B2/B4/B5/B7/B28', module:'H2131-GL（全球通）'},
+  {name:'智利', en:'Chile', region:'拉美', bands:'B2/B4/B5/B7/B28', module:'H2131-GL（全球通）'},
+  // 大洋洲/非洲
+  {name:'澳大利亚', en:'Australia', region:'大洋洲', bands:'B1/B3/B5/B7/B28', module:'H2131-GL（全球通）'},
+  {name:'新西兰', en:'New Zealand', region:'大洋洲', bands:'B1/B3/B5/B7/B28', module:'H2131-GL（全球通）'},
+  {name:'南非', en:'South Africa', region:'非洲', bands:'B1/B3/B8/B20', module:'H2131-GL / H2131-EU'},
+];
+
+const resultEl = document.getElementById('result');
+const inputEl = document.getElementById('q');
+
+function render(list){
+  if(list.length === 0){
+    resultEl.innerHTML = '<div class="empty">没有匹配的国家，试试其他关键字（如「美」「欧洲」「菲律宾」）</div>';
+    return;
+  }
+  resultEl.innerHTML = list.map(d => {
+    const note = d.note ? `<div class="note">${d.note}</div>` : '';
+    return `<div class="result-card">
+      <div class="country">${d.name} <span class="tag">${d.region}</span></div>
+      <div class="row"><div class="label">主要 4G 频段</div><div class="bands">${d.bands}</div></div>
+      <div class="row"><div class="label">推荐模组</div><div class="module">${d.module}</div></div>
+      ${note}
+    </div>`;
+  }).join('');
+}
+
+function search(){
+  const kw = inputEl.value.trim().toLowerCase();
+  if(!kw){ resultEl.innerHTML = '<div class="empty">输入国家名开始查询（如：美国、德国、菲律宾）</div>'; return; }
+  const list = DATA.filter(d =>
+    d.name.toLowerCase().includes(kw) ||
+    d.en.toLowerCase().includes(kw) ||
+    d.region.includes(kw) ||
+    d.bands.toLowerCase().includes(kw)
+  );
+  render(list);
+}
+
+inputEl.addEventListener('input', search);
+
+// ===== 模组 → 覆盖国家清单 =====
+const MODULE_COUNTRIES = [
+  {module:'国内全网通（H2131 系列）', bands:'FDD B1/B3/B5/B8 + TDD B34/B38/B39/B40/B41',
+   countries:'中国大陆 · 香港 / 澳门 / 台湾（部分）<br>东南亚：菲律宾、越南、印度尼西亚、泰国、马来西亚、新加坡'},
+  {module:'欧亚版本（H2131-EU）', bands:'FDD B1/B3/B5/B7/B8/B20/B28',
+   countries:'欧洲：英国、德国、法国、意大利、西班牙、荷兰、波兰、北欧等<br>俄罗斯、土耳其 · 中东：沙特、阿联酋、以色列'},
+  {module:'全球通（H2131-GL）', bands:'FDD B1/B2/B3/B4/B5/B7/B8/B20/B26/B28/B66 + TDD B38/B40/B41',
+   countries:'东亚：日本、韩国、印度<br>拉美：巴西、阿根廷、智利 · 大洋洲：澳大利亚、新西兰<br>非洲：南非 · 另覆盖东南亚及欧洲大部分'},
+  {module:'北美版本（E718M-A）', bands:'FDD B2/B4/B5/B7/B12/B13/B17/B25/B26/B66 + TDD B38/B40/B41',
+   countries:'美国、加拿大、墨西哥'},
+];
+function renderCover(){
+  document.getElementById('coverList').innerHTML = MODULE_COUNTRIES.map(m => `
+    <div class="result-card" style="margin-top:14px;">
+      <div class="country">${m.module}</div>
+      <div class="row"><div class="label">支持频点</div><div class="bands">${m.bands}</div></div>
+      <div class="row"><div class="label">覆盖国家 / 地区</div><div class="bands" style="font-weight:400;color:var(--ink);">${m.countries}</div></div>
+    </div>`).join('');
+}
+renderCover();
+</script>
+</body>
+</html>
